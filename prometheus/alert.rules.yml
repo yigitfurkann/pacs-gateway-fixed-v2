@@ -1,0 +1,45 @@
+groups:
+  - name: pacs_alerts
+    rules:
+      - alert: RcloneServiceDown
+        expr: up{job="rclone"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Rclone mount RC servisi çöktü!"
+          description: "Mount'un kendi RC/metrics endpoint'i (:5572) yanıt vermiyor - OBS erişimi muhtemelen kesildi."
+
+      - alert: RcloneTransferStalled
+        expr: rate(rclone_bytes_transferred_total[5m]) == 0 and rclone_active_transfers > 0
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Transfer kilitlendi!"
+          description: "Aktif transfer olmasına rağmen 5 dakikadır veri akışı 0 B/s."
+
+      - alert: CacheDiskSpaceWarning
+        expr: (node_filesystem_avail_bytes{mountpoint="__CACHE_DIR__"} / node_filesystem_size_bytes{mountpoint="__CACHE_DIR__"} * 100) < 20
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "VFS cache disk %80 dolu (uyarı)"
+          description: "Local cache alanı doluyor - vfs-cache-max-size veya max-age değerlerini gözden geçirin."
+
+      - alert: CacheDiskSpaceCritical
+        expr: (node_filesystem_avail_bytes{mountpoint="__CACHE_DIR__"} / node_filesystem_size_bytes{mountpoint="__CACHE_DIR__"} * 100) < 10
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "VFS cache disk %90 dolu!"
+          description: "Disk alanı kritik seviyede. rclone --vfs-cache-min-free-space eşiği zorlanıyor olabilir, yazma hataları başlayabilir."
+
+# NOT: Bu dosyadaki önceki sürümde "SambaServiceDown" alarmı up{job="samba"} kontrol
+# ediyordu, ama prometheus.yml içinde "samba" adında hiçbir scrape job'ı yok - bu alarm
+# hiçbir zaman gerçek durumu yansıtmıyordu. Samba'nın gerçek erişilebilirliğini izlemek
+# istersen blackbox_exporter (445 portu TCP probe) veya node_exporter'ın systemd
+# collector'ını (ek dbus/systemd bind mount gerektirir) ayrıca eklemek gerekir - mevcut
+# stack'te bu yok, o yüzden yanlış pozitif üretmemesi için kaldırıldı.

@@ -1,0 +1,41 @@
+[Unit]
+Description=Rclone Mount OBS (unified read-write VFS cache)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=root
+ExecStart=/usr/bin/rclone mount obs:${BUCKET_NAME} ${MOUNT_PATH} \
+  --config /etc/rclone/rclone.conf \
+  --cache-dir ${CACHE_DIR} \
+  --allow-other \
+  --uid ${SMB_UID} \
+  --gid ${SMB_GID} \
+  --dir-perms 0775 \
+  --file-perms 0664 \
+  --vfs-cache-mode full \
+  --vfs-cache-max-age ${VFS_CACHE_AGE} \
+  --vfs-cache-max-size ${VFS_CACHE_SIZE} \
+  --vfs-cache-min-free-space ${VFS_CACHE_MIN_FREE} \
+  --vfs-cache-poll-interval 1m \
+  --vfs-write-back ${VFS_WRITE_BACK} \
+  --vfs-read-chunk-size 128M \
+  --vfs-read-chunk-size-limit 1G \
+  --dir-cache-time 1h \
+  --buffer-size 256M \
+  --rc \
+  --rc-addr=0.0.0.0:5572 \
+  --rc-user=${RC_USER} \
+  --rc-pass=${RC_PASS} \
+  --rc-enable-metrics \
+  --rc-web-gui \
+  --log-level INFO \
+  --log-file /opt/pacs-gateway/logs/rclone-mount.log
+ExecStop=/bin/fusermount -uz ${MOUNT_PATH}
+Restart=always
+RestartSec=10
+StartLimitIntervalSec=0
+
+[Install]
+WantedBy=multi-user.target
